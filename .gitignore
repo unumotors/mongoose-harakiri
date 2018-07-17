@@ -1,0 +1,7 @@
+.idea
+node_modules
+*.tap
+*.log
+.DS_Store
+.eslintrc.js
+*.tgz

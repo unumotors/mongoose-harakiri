@@ -1,0 +1,33 @@
+{
+  "name": "mongoose-harakiri",
+  "version": "1.0.0",
+  "description": "A connection handler for Mongoose that ensures a stable connection or kills itself",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "ava --serial"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unumotors/mongoose-harakiri.git"
+  },
+  "author": "unu GmbH <software@unumotors.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/unumotors/mongoose-harakiri/issues"
+  },
+  "homepage": "https://github.com/unumotors/mongoose-harakiri#readme",
+  "dependencies": {
+    "debug": "^3.1.0"
+  },
+  "peerDependencies": {
+    "mongoose": "4.x"
+  },
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "eslint": "^5.0.1",
+    "eslint-config-unu": "^1.2.2",
+    "eslint-plugin-import": "^2.13.0",
+    "mongoose": "4.13.14"
+  }
+}
