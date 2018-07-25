@@ -12,21 +12,22 @@ let logger = defaultLogger
 
 mongoose.Promise = global.Promise
 
-// Disable max-len because of long links
-/* eslint max-len: 0 */
+applyListenersToConnection(mongoose.connection)
 
 /** DEFAULT OPTIONS
 *
-* Can be overwritten. See these see
-* https://mongodb.github.io/node-mongodb-native/1.4/driver-articles/mongoclient.html?highlight=server#db-a-hash-of-options-at-the-db-level-overriding-or-adjusting-functionality-not-supported-by-the-url
-* Beware that this link may change its version when mongoose is updated
+* Can be overwritten.
+* Check README
+*
 */
 const ssl = process.env['NODE_ENV'] ? process.env['NODE_ENV'] != 'development' : true
-const defaultOptions = {
-  useMongoClient: true,
+let defaultOptions = {
   ssl,
-  sslValidate: false
+  sslValidate: false,
+  useNewUrlParser: true,
+  killProcessOnDisconnect: false // Behavior on disconnect
 }
+let currentOptions
 
 /**
  * Disconnect a mongo connection
@@ -45,61 +46,48 @@ function disconnect() {
  * Connect to a mongodb
  *
  * @param {string} mongoConnectionString complete mongo connection string. e.g. user:password@mongodb:27017/database
- * @param {object} [options] mongo client options see link below
- * https://mongodb.github.io/node-mongodb-native/1.4/driver-articles/mongoclient.html?highlight=server#db-a-hash-of-options-at-the-db-level-overriding-or-adjusting-functionality-not-supported-by-the-url
+ * @param {object} [options] mongo client options; see README
  *
- * @returns {Boolean} If a new connection has been established
+ * @returns {Promise<Mongoose>} Returns the connection
  */
 function connect(mongoConnectionString, options = {}) {
   // Generate options
-  options = { ...defaultOptions, ...options }
-  logger.info('**** mongoose-harakiri: Connecting with these options;', options)
+  currentOptions = { ...defaultOptions, ...options }
+  logger.info('**** mongoose-harakiri: Connecting with these options:')
+  logger.info('**** mongoose-harakiri:', currentOptions)
 
   // Check if connection is already open
   if (mongoose.connection.readyState > 0) {
     logger.debug('**** mongoose-harakiri: Connection is already open.')
-    return false
+    return Promise.resolve(mongoose.connection)
   }
+
+  // Prepare mongoose options
+  const mongooseOptions = { ...currentOptions }
+  delete mongooseOptions.killProcessOnDisconnect
 
   // Connect
   try {
-    mongoose.connect(mongoConnectionString, options)
+    return mongoose.connect(mongoConnectionString, mongooseOptions)
   } catch (error) {
     logger.error('**** mongoose-harakiri: Failed connecting to the DB!')
     logger.error(error)
     process.exit(1)
   }
-
-  // apply listeners
-  try {
-    applyListenersToConnection(mongoose.connection)
-  } catch (error) {
-    logger.error('**** mongoose-harakiri: Could not apply listeners!')
-    logger.error(error)
-    process.exit(1)
-  }
-  return true
 }
 
 function applyListenersToConnection(connection) {
   connection.on('disconnected', () => {
     logger.info('**** mongoose-harakiri: Default connection disconnected.')
+    if (currentOptions.killProcessOnDisconnect) return process.exit(1)
   })
 
   connection.on('connected', () => {
     logger.info('**** mongoose-harakiri: Successfully connected.')
   })
 
-  connection.on('reconnectFailed', () => {
-    // The mongo client will try to reconnect for 30 seconds and then emit this event
-    // The 30 seconds are the default and can be changed using these settings:
-    // https://mongodb.github.io/node-mongodb-native/1.4/driver-articles/mongoclient.html?highlight=server#db-a-hash-of-options-at-the-db-level-overriding-or-adjusting-functionality-not-supported-by-the-url
-    logger.error('**** mongoose-harakiri: Reconnect failed.')
-    process.exit(1)
-  })
-
   connection.on('reconnected', () => {
-    logger.debug('**** mongoose-harakiri: Successfully reconnected.')
+    logger.info('**** mongoose-harakiri: Successfully reconnected.')
   })
 
   connection.on('error', (err) => {

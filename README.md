@@ -1,25 +1,27 @@
 # mongoose-harakiri
 
-**Mongoose Harakiri ensures a stable connection with mongoose, and kills itself if it can't establish one.**
+**Mongoose Harakiri ensures a stable connection with mongoose, and kills itself if it can't establish one**
 
 ## Behavior
+
 - Replaces good old `mongoose.connect` call
 - Doesn't create a new connection if mongoose is already connected
 - If it can't connect, it kills itself, so no more hanging processes!
-- If it can't re-connect, it kills itself, so no more hanging processes!
+- If it loses connection and can't reconnect, it kills itself, so no more hanging processes! This is useful in sharded clusters where reconnect to Mongos is [broken in MongoClient](https://jira.mongodb.org/browse/NODE-1340)
 - If there are any problems with mongoose, it kills itself, so no more hanging processes!
 - Gives you nice log messages about every action so that you can clearly see what went on
 - It uses SSL by default when `NODE_ENV` is set to anything other than `development` (but **does not validate** it.)
 - It authenticates against the `admin` database
 
 ## Motivation
+
 In the era of cloud computing, orchestration tools, and Kubernetes, we need reliable database connections more than ever. Since the orchestration tool can respawn a container that exits with an error, it's preferable to surface connection problems and explicitly try to re-initiate the connection by killing and spawning the whole container again. Also, applications that rely on databases shouldn't be alive if they aren't actually connected to a database, because they are in fact useless.
 
 ## Usage
 
-### `connect(connectionString, [options]) => Boolean`
+### `connect(connectionString, [options]) => Promise<Mongoose>`
 
-Connects to a given mongo server. Optionally takes [connection options](https://mongodb.github.io/node-mongodb-native/1.4/driver-articles/mongoclient.html?highlight=server#db-a-hash-of-options-at-the-db-level-overriding-or-adjusting-functionality-not-supported-by-the-url). Returns true when a new connection established, false when there's already an established connection.
+Connects to a given mongo server. Optionally takes [connection options](https://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect). Returns a promise containing the mongoose connection.
 
 ```js
 const mongooseHarakiri = require('mongoose-harakiri')
@@ -27,7 +29,7 @@ const mongooseHarakiri = require('mongoose-harakiri')
 mongooseHarakiri.connect('mongodb://user:password@mongodb:27017')
 ```
 
-Passing [connection options](https://mongodb.github.io/node-mongodb-native/1.4/driver-articles/mongoclient.html?highlight=server#db-a-hash-of-options-at-the-db-level-overriding-or-adjusting-functionality-not-supported-by-the-url):
+Passing [connection options](https://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect):
 
 ```js
 mongooseHarakiri.connect('mongodb://user:password@mongodb:27017', { ssl: false })
@@ -35,7 +37,7 @@ mongooseHarakiri.connect('mongodb://user:password@mongodb:27017', { ssl: false }
 
 ### `disconnect() => Promise<void>`
 
-Disconnects a connection if there is one.
+Disconnects a connection if there is one. Beware: If you have the `killProcessOnDisconnect` option enabled, this will kill your process.
 
 #### `options`
 
@@ -44,12 +46,19 @@ Every property can be individually overwritten. Passing an options object does n
 ```js
 {
   ssl: true,
-  sslValidate: true
-  auth: {
-    authSource: 'admin'
-  }
+  sslValidate: true,
+  authSource: 'admin',
+  killProcessOnDisconnect: true
 }
 ```
+
+The default mongoose-harakiri behavior can also be overwritten using this option:
+
+- `killProcessOnDisconnect`: If set to `true`, on any disconnect mongoose-harakiri will kill itself. This is very useful when dealing with the [broken MongoClient reconnection logic](https://jira.mongodb.org/browse/NODE-1340), which makes it impossible to reconnect to a mongos proxy in front of a mongo sharded cluster. If you set this to `false` mongoose will try to reconnect and kill itself if it fails (See the mongoose [`reconnectTries` and `reconnectInterval` settings](https://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect) for more details).
+
+### `setLogger(logger)`
+
+The `console.*` functions are used by default for logging. You can replace these with your own logger instance that contains the functions `log`, `warn`, `info`, `debug` and `error` (for example [winston](https://github.com/winstonjs/winston)).
 
 ## Running tests locally
 
