@@ -3,5 +3,6 @@ node_modules
 *.tap
 *.log
 .DS_Store
-.eslintrc.js
 *.tgz
+.nyc_output
+coverage
