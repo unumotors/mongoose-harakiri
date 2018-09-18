@@ -66,22 +66,28 @@ function connect(mongoConnectionString, options = {}) {
   const mongooseOptions = { ...currentOptions }
   delete mongooseOptions.killProcessOnDisconnect
 
+
+  // Remove possible previous disconnect listener before connection attempt
+  mongoose.connection.removeListener('disconnected', disconnectListenerCallback)
+
   // Connect
   try {
-    return mongoose.connect(mongoConnectionString, mongooseOptions)
+    mongoose.connect(mongoConnectionString, mongooseOptions)
   } catch (error) {
     logger.error('**** mongoose-harakiri: Failed connecting to the DB!')
     logger.error(error)
     process.exit(1)
   }
+
+  // Apply disconnect listener after connection has been established
+  mongoose.connection.then(() => {
+    mongoose.connection.on('disconnected', disconnectListenerCallback)
+  })
+
+  return mongoose.connection
 }
 
 function applyListenersToConnection(connection) {
-  connection.on('disconnected', () => {
-    logger.info('**** mongoose-harakiri: Default connection disconnected.')
-    if (currentOptions.killProcessOnDisconnect) return process.exit(1)
-  })
-
   connection.on('connected', () => {
     logger.info('**** mongoose-harakiri: Successfully connected.')
   })
@@ -95,6 +101,11 @@ function applyListenersToConnection(connection) {
     logger.error(err)
     process.exit(1)
   })
+}
+
+function disconnectListenerCallback() {
+  logger.info('**** mongoose-harakiri: Default connection disconnected.')
+  if (currentOptions.killProcessOnDisconnect) return process.exit(1)
 }
 
 function setLogger(newLogger) {
