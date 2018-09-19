@@ -28,5 +28,5 @@ test('should reuse a connection', async t => {
   let secondConnection = connect(mongoConnectionString)
   t.truthy(typeof secondConnection, 'Promise', 'should return a promise')
   secondConnection = await secondConnection
-  t.falsy(secondConnection.isReused, 'should reuse connection')
+  t.truthy(secondConnection.isReused, 'should reuse connection')
 })
