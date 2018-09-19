@@ -1,6 +1,6 @@
 {
   "name": "mongoose-harakiri",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A connection handler for Mongoose that ensures a stable connection or kills itself",
   "main": "index.js",
   "scripts": {
