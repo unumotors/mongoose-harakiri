@@ -53,8 +53,7 @@ function disconnect() {
 function connect(mongoConnectionString, options = {}) {
   // Generate options
   currentOptions = { ...defaultOptions, ...options }
-  logger.info('**** mongoose-harakiri: Connecting with these options:')
-  logger.info('**** mongoose-harakiri:', currentOptions)
+  logger.info('**** mongoose-harakiri: Connecting.')
 
   // Check if connection is already open
   if (mongoose.connection.readyState > 0) {
